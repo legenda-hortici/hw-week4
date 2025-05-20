@@ -104,8 +104,8 @@ GET /v1/tasks
 ```
 
 ### **Получение всех задач c пагинацией**
-```bash
 GET /v1/tasks?page=2
+```bash
 {
     "status": "success",
     "data": [
