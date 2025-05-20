@@ -1,13 +1,12 @@
-package repo
+package db
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
+// Task - задача
 type Task struct {
-	ID          uuid.UUID `json:"id"`
+	ID          int64     `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	Status      string    `json:"status"`
@@ -15,9 +14,10 @@ type Task struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// UpdateTask - обновленная задача
 type UpdateTask struct {
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
 	UpdatedAt   time.Time
 }

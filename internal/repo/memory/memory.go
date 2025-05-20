@@ -1,4 +1,4 @@
-package repo
+package memory
 
 import (
 	"context"
@@ -8,17 +8,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 const (
-	statusNew         = "new"
-	statusDone        = "done"
+	statusNew        = "new"
+	statusDone       = "done"
 	statusInProgress = "in_progress"
 )
 
 type repository struct {
-	log  *zap.SugaredLogger
 	mu   sync.RWMutex
 	Task map[uuid.UUID]*Task
 }
@@ -31,10 +29,9 @@ type Repository interface {
 	UpdateTask(ctx context.Context, id uuid.UUID, task UpdateTask) error
 }
 
-func NewRepo(log *zap.SugaredLogger) Repository {
+func NewRepo(ctx context.Context) Repository {
 	return &repository{
 		Task: make(map[uuid.UUID]*Task),
-		log:  log,
 	}
 }
 
@@ -52,7 +49,6 @@ func (r *repository) CreateTask(ctx context.Context, task Task) (uuid.UUID, erro
 
 	select {
 	case <-ctx.Done():
-		r.log.Error("failed to create task: ", zap.Error(ctx.Err()))
 		return uuid.Nil, errors.Wrap(ctx.Err(), "failed to create task")
 	default:
 		if task.Title == "" {
@@ -79,7 +75,6 @@ func (r *repository) GetTask(ctx context.Context, id uuid.UUID) (*Task, error) {
 
 	select {
 	case <-ctx.Done():
-		r.log.Error("failed to get task: ", zap.Error(ctx.Err()))
 		return nil, errors.Wrap(ctx.Err(), "failed to get task")
 	default:
 		task, ok := r.Task[id]
@@ -99,7 +94,6 @@ func (r *repository) GetAllTasks(ctx context.Context) ([]*Task, error) {
 
 	select {
 	case <-ctx.Done():
-		r.log.Error("failed to get tasks: ", zap.Error(ctx.Err()))
 		return nil, errors.Wrap(ctx.Err(), "failed to get tasks")
 	default:
 		if len(r.Task) == 0 {

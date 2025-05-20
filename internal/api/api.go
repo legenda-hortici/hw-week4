@@ -28,14 +28,19 @@ func NewRouters(r *Routers, token string, log *zap.SugaredLogger) *fiber.App {
 
 	api := app.Group("/v1", middleware.Autorization(token))
 	{
+		// Создание задачи
 		api.Post("/tasks", r.Service.CreateTask)
 
+		// Получение задачи
 		api.Get("/tasks/:id", r.Service.GetTask)
 
+		// Получение всех задач
 		api.Get("/tasks", r.Service.GetAllTasks)
 
+		// Удаление задачи
 		api.Delete("/tasks/:id", r.Service.DeleteTask)
 
+		// Обновление задачи
 		api.Put("/tasks/:id", r.Service.UpdateTask)
 	}
 

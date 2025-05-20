@@ -2,19 +2,23 @@ package service
 
 import (
 	"restapi/internal/dto"
-	"restapi/internal/repo"
+	"restapi/internal/repo/db"
 	"restapi/pkg/validator"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
+)
+
+const (
+	limit int = 2
 )
 
 type service struct {
 	log  *zap.SugaredLogger
-	repo repo.Repository
+	repo db.Repository
 }
 
+// Service - интерфейс сервиса
 type Service interface {
 	CreateTask(ctx *fiber.Ctx) error
 	GetTask(ctx *fiber.Ctx) error
@@ -23,13 +27,14 @@ type Service interface {
 	UpdateTask(ctx *fiber.Ctx) error
 }
 
-func NewService(log *zap.SugaredLogger, repo repo.Repository) Service {
+func NewService(log *zap.SugaredLogger, repo db.Repository) Service {
 	return &service{
 		log:  log,
 		repo: repo,
 	}
 }
 
+// CreateTask - создает новую задачу
 func (s *service) CreateTask(ctx *fiber.Ctx) error {
 	var req TaskRequest
 
@@ -43,7 +48,7 @@ func (s *service) CreateTask(ctx *fiber.Ctx) error {
 		return dto.BadResponseError(ctx, dto.FieldIncorrect, "Invalid request body")
 	}
 
-	task := repo.Task{
+	task := db.Task{
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      req.Status,
@@ -57,20 +62,21 @@ func (s *service) CreateTask(ctx *fiber.Ctx) error {
 
 	responce := dto.Response{
 		Status: "success",
-		Data:   map[string]uuid.UUID{"id": id},
+		Data:   map[string]int64{"id": id},
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(responce)
 }
 
+// GetTask - возвращает задачу по id
 func (s *service) GetTask(ctx *fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
+	id, err := ctx.ParamsInt("id")
 	if err != nil {
 		s.log.Error("Invalid task id")
 		return dto.BadResponseError(ctx, dto.FieldBadFormat, "Invalid task id")
 	}
 
-	task, err := s.repo.GetTask(ctx.Context(), id)
+	task, err := s.repo.GetTask(ctx.Context(), int64(id))
 	if err != nil {
 		s.log.Errorf("Error getting task: %v", zap.Error(err))
 		return dto.InternalServerError(ctx)
@@ -84,11 +90,20 @@ func (s *service) GetTask(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(responce)
 }
 
+// GetAllTasks - возвращает все задачи
 func (s *service) GetAllTasks(ctx *fiber.Ctx) error {
-	tasks, err := s.repo.GetAllTasks(ctx.Context())
+	page := ctx.QueryInt("page", 1)
+	offset := (page - 1) * limit
+
+	tasks, err := s.repo.GetAllTasks(ctx.Context(), limit, offset)
 	if err != nil {
 		s.log.Errorf("Error getting tasks: %v", zap.Error(err))
 		return dto.InternalServerError(ctx)
+	}
+
+	if len(tasks) == 0 {
+		s.log.Error("Tasks not found")
+		return dto.BadResponseError(ctx, dto.FieldNotFound, "Tasks not found")
 	}
 
 	responce := dto.Response{
@@ -99,14 +114,15 @@ func (s *service) GetAllTasks(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(responce)
 }
 
+// DeleteTask - удаляет задачу
 func (s *service) DeleteTask(ctx *fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
+	id, err := ctx.ParamsInt("id")
 	if err != nil {
 		s.log.Error("Invalid task id")
 		return dto.BadResponseError(ctx, dto.FieldBadFormat, "Invalid task id")
 	}
 
-	err = s.repo.DeleteTask(ctx.Context(), id)
+	err = s.repo.DeleteTask(ctx.Context(), int64(id))
 	if err != nil {
 		s.log.Errorf("Error deleting task: %v", zap.Error(err))
 		return dto.InternalServerError(ctx)
@@ -119,8 +135,9 @@ func (s *service) DeleteTask(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(responce)
 }
 
+// UpdateTask - обновляет задачу
 func (s *service) UpdateTask(ctx *fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
+	id, err := ctx.ParamsInt("id")
 	if err != nil {
 		s.log.Error("Invalid id")
 		return dto.BadResponseError(ctx, dto.FieldBadFormat, "Invalid task id")
@@ -138,13 +155,13 @@ func (s *service) UpdateTask(ctx *fiber.Ctx) error {
 		return dto.BadResponseError(ctx, dto.FieldIncorrect, "Invalid request body")
 	}
 
-	task := repo.UpdateTask{
+	task := db.UpdateTask{
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      req.Status,
 	}
 
-	err = s.repo.UpdateTask(ctx.Context(), id, task)
+	err = s.repo.UpdateTask(ctx.Context(), int64(id), task)
 	if err != nil {
 		s.log.Errorf("Error updating task: %v", zap.Error(err))
 		return dto.InternalServerError(ctx)
